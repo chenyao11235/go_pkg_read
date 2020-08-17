@@ -120,71 +120,30 @@ type WriterTo interface {
 	WriteTo(w Writer) (n int64, err error)
 }
 
-// ReaderAt is the interface that wraps the basic ReadAt method.
-//
-// ReadAt reads len(p) bytes into p starting at offset off in the
-// underlying input source. It returns the number of bytes
-// read (0 <= n <= len(p)) and any error encountered.
-//
-// When ReadAt returns n < len(p), it returns a non-nil error
-// explaining why more bytes were not returned. In this respect,
-// ReadAt is stricter than Read.
-//
-// Even if ReadAt returns n < len(p), it may use all of p as scratch
-// space during the call. If some data is available but not len(p) bytes,
-// ReadAt blocks until either all the data is available or an error occurs.
-// In this respect ReadAt is different from Read.
-//
-// If the n = len(p) bytes returned by ReadAt are at the end of the
-// input source, ReadAt may return either err == EOF or err == nil.
-//
-// If ReadAt is reading from an input source with a seek offset,
-// ReadAt should not affect nor be affected by the underlying
-// seek offset.
-//
-// Clients of ReadAt can execute parallel ReadAt calls on the
-// same input source.
-//
-// Implementations must not retain p.
+// 从底层数据流偏移位置开始读取，返回读取的字节数
+// 当ReadAt读取的数据量小于len(p)的话就会返回一个非空error，这点ReadAt相比较于Read更加严格
+// 如果读取了len(p)个子节之后刚好处于数据流的末尾，那么返回空的error或者EOF都可以
+//ReadAt的offset和数据流底层的offset不是一回事，互不影响
+// ReadAt的客户端可以并行调用它
 type ReaderAt interface {
 	ReadAt(p []byte, off int64) (n int, err error)
 }
 
-// WriterAt is the interface that wraps the basic WriteAt method.
-//
-// WriteAt writes len(p) bytes from p to the underlying data stream
-// at offset off. It returns the number of bytes written from p (0 <= n <= len(p))
-// and any error encountered that caused the write to stop early.
-// WriteAt must return a non-nil error if it returns n < len(p).
-//
-// If WriteAt is writing to a destination with a seek offset,
-// WriteAt should not affect nor be affected by the underlying
-// seek offset.
-//
-// Clients of WriteAt can execute parallel WriteAt calls on the same
-// destination if the ranges do not overlap.
-//
-// Implementations must not retain p.
+// 从偏移位置写入len(p)子节的数据，如果写入的数据小于len(p)则返回一个非空的error
+// WriteAt和数据流底层的seek互不影响
+// 如果写入的区域不重叠则允许多个WriteAt的客户端并发调用写入
 type WriterAt interface {
 	WriteAt(p []byte, off int64) (n int, err error)
 }
 
-// ByteReader is the interface that wraps the ReadByte method.
-//
-// ReadByte reads and returns the next byte from the input or
-// any error encountered. If ReadByte returns an error, no input
-// byte was consumed, and the returned byte value is undefined.
+// 读取并返回下一个子节的内容
 type ByteReader interface {
 	ReadByte() (byte, error)
 }
 
-// ByteScanner is the interface that adds the UnreadByte method to the
-// basic ReadByte method.
-//
-// UnreadByte causes the next call to ReadByte to return the same byte
-// as the previous call to ReadByte.
-// It may be an error to call UnreadByte twice without an intervening
-// call to ReadByte.
+// 在ByteReader接口之上又封装一个UnreadByte方法
+// 在调用UnreadByte之后，会导致下一次调用ByteReader方法返回的数据和上一次调用的ByteReader方法返回的数据一样，相当于往回倒了一步
+// 如果连续调用两次UnreadByte之后而不调用ByteReader有可能会造成一个错误
 type ByteScanner interface {
 	ByteReader
 	UnreadByte() error
@@ -195,35 +154,25 @@ type ByteWriter interface {
 	WriteByte(c byte) error
 }
 
-// RuneReader is the interface that wraps the ReadRune method.
-//
-// ReadRune reads a single UTF-8 encoded Unicode character
-// and returns the rune and its size in bytes. If no character is
-// available, err will be set.
+//utf8编码的字符是1-4个子节，英文字符是一个子节，中文是3个子节，只有极少的语言会占用4个子节
+// rune 其实 uint 32的类型重命名 占4个子节
+// ReadRune读取一个utf8编码的字符并返回这字符，字符占用的字节数
 type RuneReader interface {
 	ReadRune() (r rune, size int, err error)
 }
 
-// RuneScanner is the interface that adds the UnreadRune method to the
-// basic ReadRune method.
-//
-// UnreadRune causes the next call to ReadRune to return the same rune
-// as the previous call to ReadRune.
-// It may be an error to call UnreadRune twice without an intervening
-// call to ReadRune.
+// 参照ByteScanner
 type RuneScanner interface {
 	RuneReader
 	UnreadRune() error
 }
 
-// StringWriter is the interface that wraps the WriteString method.
+// Writer写数据接收的参数是[]byte,而实现了这个接口则允许接收string参数
 type StringWriter interface {
 	WriteString(s string) (n int, err error)
 }
 
-// WriteString writes the contents of the string s to w, which accepts a slice of bytes.
-// If w implements StringWriter, its WriteString method is invoked directly.
-// Otherwise, w.Write is called exactly once.
+// 往writer中写string
 func WriteString(w Writer, s string) (n int, err error) {
 	if sw, ok := w.(StringWriter); ok {
 		return sw.WriteString(s)
