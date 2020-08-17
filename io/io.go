@@ -180,14 +180,9 @@ func WriteString(w Writer, s string) (n int, err error) {
 	return w.Write([]byte(s))
 }
 
-// ReadAtLeast reads from r into buf until it has read at least min bytes.
-// It returns the number of bytes copied and an error if fewer bytes were read.
-// The error is EOF only if no bytes were read.
-// If an EOF happens after reading fewer than min bytes,
-// ReadAtLeast returns ErrUnexpectedEOF.
-// If min is greater than the length of buf, ReadAtLeast returns ErrShortBuffer.
-// On return, n >= min if and only if err == nil.
-// If r returns an error having read at least min bytes, the error is dropped.
+//从reader中至少读取min个子节到buf中
+//如果没有读够min就EOF了返回ErrUnexpectedEOF
+//如果min大于len(buf)返回ErrShortBuffer
 func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 	if len(buf) < min {
 		return 0, ErrShortBuffer
@@ -216,13 +211,7 @@ func ReadFull(r Reader, buf []byte) (n int, err error) {
 	return ReadAtLeast(r, buf, len(buf))
 }
 
-// CopyN copies n bytes (or until an error) from src to dst.
-// It returns the number of bytes copied and the earliest
-// error encountered while copying.
-// On return, written == n if and only if err == nil.
-//
-// If dst implements the ReaderFrom interface,
-// the copy is implemented using it.
+//从src复制n子节数据到dst中
 func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 	written, err = Copy(dst, LimitReader(src, n))
 	if written == n {
@@ -235,18 +224,9 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 	return
 }
 
-// Copy copies from src to dst until either EOF is reached
-// on src or an error occurs. It returns the number of bytes
-// copied and the first error encountered while copying, if any.
-//
-// A successful Copy returns err == nil, not err == EOF.
-// Because Copy is defined to read from src until EOF, it does
-// not treat an EOF from Read as an error to be reported.
-//
-// If src implements the WriterTo interface,
-// the copy is implemented by calling src.WriteTo(dst).
-// Otherwise, if dst implements the ReaderFrom interface,
-// the copy is implemented by calling dst.ReadFrom(src).
+//从src复制数据到dst直到EOF或者任意的error发生
+//一个成功的复制返回的error应该是nil，而不应该是EOF
+// 如果src实现了WriteTo就用WriteTo实现，如果dst实现了ReadFrom就用ReadFrom实现，两个都没有就用buffer实现
 func Copy(dst Writer, src Reader) (written int64, err error) {
 	return copyBuffer(dst, src, nil)
 }
@@ -289,8 +269,10 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 		buf = make([]byte, size)
 	}
 	for {
+		// 先把reader中的数据读取到buf
 		nr, er := src.Read(buf)
 		if nr > 0 {
+			//把buf中的数据写入到writer
 			nw, ew := dst.Write(buf[0:nr])
 			if nw > 0 {
 				written += int64(nw)
@@ -314,18 +296,14 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	return written, err
 }
 
-// LimitReader returns a Reader that reads from r
-// but stops with EOF after n bytes.
-// The underlying implementation is a *LimitedReader.
+// 限制从reader中读取的子节数，不多不超过n
 func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
 
-// A LimitedReader reads from R but limits the amount of
-// data returned to just N bytes. Each call to Read
-// updates N to reflect the new amount remaining.
-// Read returns EOF when N <= 0 or when the underlying R returns EOF.
+// Reader的实现，限制从Reader中读取的最大字节数
+// 每次调用Read都会更新N
 type LimitedReader struct {
 	R Reader // underlying reader
-	N int64  // max bytes remaining
+	N int64  // max bytes remaining  剩余的最大可读字节数
 }
 
 func (l *LimitedReader) Read(p []byte) (n int, err error) {

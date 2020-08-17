@@ -37,18 +37,12 @@ func readAll(r io.Reader, capacity int64) (b []byte, err error) {
 	return buf.Bytes(), err
 }
 
-// ReadAll reads from r until an error or EOF and returns the data it read.
-// A successful call returns err == nil, not err == EOF. Because ReadAll is
-// defined to read from src until EOF, it does not treat an EOF from Read
-// as an error to be reported.
+// 从reader中读取所有的数据，成功的readall返回的error是nil而不是EOF
 func ReadAll(r io.Reader) ([]byte, error) {
 	return readAll(r, bytes.MinRead)
 }
 
-// ReadFile reads the file named by filename and returns the contents.
-// A successful call returns err == nil, not err == EOF. Because ReadFile
-// reads the whole file, it does not treat an EOF from Read as an error
-// to be reported.
+// 读取filename的所有文件内容
 func ReadFile(filename string) ([]byte, error) {
 	f, err := os.Open(filename)
 	if err != nil {

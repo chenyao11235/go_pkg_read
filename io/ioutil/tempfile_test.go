@@ -17,6 +17,7 @@ func TestTempFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log(dir)
 	defer os.RemoveAll(dir)
 
 	nonexistentDir := filepath.Join(dir, "_not_exists_")
